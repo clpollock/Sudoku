@@ -4,10 +4,13 @@
 #include <sstream>
 #include <stdio.h>
 #include <string>
+#include <string.h>
 #include <vector>
 #include "Grid.h"
 
-std::unique_ptr<Grid> Load(const char* fileName)
+// Load a puzzle file into a 9 by 9 matrix.
+
+void Load(const char* fileName, std::array<char[9], 9>& cells)
 {
   std::ifstream file(fileName);
   if (!file)
@@ -17,7 +20,6 @@ std::unique_ptr<Grid> Load(const char* fileName)
 	throw std::runtime_error(ss.str());
   }
 
-  std::array<char[9], 9> cells;
   for (int row = 0; row < 9; ++row)
   {
 	std::string line;
@@ -55,8 +57,72 @@ std::unique_ptr<Grid> Load(const char* fileName)
 	while (col < 9)
 	  cells[row][col++] = -1;
   }
+}
 
-  return std::make_unique<Grid>(cells);
+void Verify(const char* fileName)
+{
+  std::array<char[9], 9> cells;
+  std::array<bool, 9> used;
+  Load(fileName, cells);
+
+  for (int row = 0; row < 9; ++row)
+  {
+	used.fill(false);
+	for (int col = 0; col < 9; ++col)
+	{
+	  int n = cells[row][col];
+	  if (n == -1)
+	  {
+		std::cout << "No value has been set for cell " << (row + 1) << ", " << (col + 1) << std::endl;
+		return;
+	  }
+
+	  if (used[n])
+	  {
+		std::cout << "Number " << (n + 1) << " has been used multiple times in row " << (row + 1) << std::endl;
+		return;
+	  }
+	  used[n] = true;
+	}
+  }
+
+  for (int col = 0; col < 9; ++col)
+  {
+	used.fill(false);
+	for (int row = 0; row < 9; ++row)
+	{
+	  int n = cells[row][col];
+	  if (used[n])
+	  {
+		std::cout << "Number " << (n + 1) << " has been used multiple times in column " << (col + 1) << std::endl;
+		return;
+	  }
+	  used[n] = true;
+	}
+  }
+
+  for (int subgridStartRow = 0; subgridStartRow <= 6; ++subgridStartRow)
+  {
+	for (int subgridStartCol = 0; subgridStartCol <= 6; ++subgridStartCol)
+	{
+	  used.fill(false);
+	  for (int row = subgridStartRow; row < subgridStartRow + 3; ++row)
+	  {
+		for (int col = subgridStartCol; col < subgridStartCol + 3; ++col)
+		{
+		  int n = cells[row][col];
+		  if (used[n])
+		  {
+			std::cout << "Number " << (n + 1) << " has been used multiple times in subgrid "
+			  << (subgridStartRow / 3 + 1) << ", " << (subgridStartCol / 3 + 1)  << std::endl;
+			return;
+		  }
+		}
+	  }
+	}
+  }
+
+  std::cout << fileName << " is a valid solution." << std::endl;
 }
 
 // Find a solution for a sudoku grid. If the grid has multiple solutions, it
@@ -68,7 +134,7 @@ bool Solve(const Grid& grid)
   if (grid.UnknownCellCount() == 0)
   {
 	// We have a solution.
-	std::cout << "Solution:" << std::endl << grid;
+	std::cout << grid;
 	return true;
   }
 
@@ -96,6 +162,7 @@ bool Solve(const Grid& grid)
   
   // Iterate over each possible value for the chosen cell.
   const Cell& guessCell = grid.GetCell(guessRow, guessCol);
+  // NextPossibility returns -1 when there are no more possibilities.
   for (int n = guessCell.FirstPossibility(); n != -1; n = guessCell.NextPossibility(n))
   {
 	// Create a copy of the grid. The Grid occupies only 328 bytes so this is
@@ -122,23 +189,40 @@ bool Solve(const Grid& grid)
   return false;
 }
 
+// Read a puzzle grid from a file and try to solve it.
+
+void Solve(const char* fileName)
+{
+  std::array<char[9], 9> cells;
+  Load(fileName, cells);
+  Grid grid(cells);
+  if (!Solve(grid))
+	std::cerr << "Puzzle " << fileName << " has no solution.";
+}
+
 int main(int argc, char *argv[])
 {
-  if (argc != 2)
-  {
-	std::cerr << "Usage: " << argv[0] << " <puzzle_file>" << std::endl;
-	return 1;
-  }
-  
   try
   {
-	// Read the puzzle grid from the file and try to solve it.
-	std::unique_ptr grid = Load(argv[1]);
-	if (!Solve(*grid))
-	  throw std::runtime_error("The puzzle has no solution.");
+	if (argc == 2)
+	{
+	  Solve(argv[1]);
+	}
+	else if (argc == 3 && strcmp(argv[1], "-v") == 0)
+	{
+	  Verify(argv[2]);
+	}
+	else
+	{
+	  std::cerr << "Usage: " << argv[0] << "[-v] puzzle_file" << std::endl
+		<< "-v    verify that puzzle_file is a correct solution" << std::endl;
+	  return 1;
+	}
   }
   catch (const std::exception& e)
   {
 	std::cerr << e.what() << std::endl;
+	return 1;
   }
+  return 0;
 }
