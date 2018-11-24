@@ -6,7 +6,7 @@ RootDir := $(abspath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 Mode = Release
 
-CXXFLAGS = -std=c++17 -Wall -Wno-dangling-else
+CXXFLAGS = -std=c++14 -Wall -Wno-dangling-else
 
 ifeq ($(Mode),Debug)
     CXXFLAGS += -g -D_DEBUG
