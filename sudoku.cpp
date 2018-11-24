@@ -53,7 +53,7 @@ void Load(const char* fileName, std::array<char[9], 9>& cells)
 	  }
 	  ++col;
 	}
-	// If the line is contains fewer than 9 characters, treat the remaining cells as empty.
+	// If the line contains fewer than 9 characters, treat the remaining cells as empty.
 	while (col < 9)
 	  cells[row][col++] = -1;
   }
